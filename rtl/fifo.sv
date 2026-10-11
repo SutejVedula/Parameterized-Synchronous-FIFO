@@ -49,6 +49,7 @@ module fifo #(
             data_out  <= '0;
         end
         else begin
+
             // Write operation
             if (write_accept) begin
                 memory[write_ptr] <= data_in;
@@ -80,52 +81,52 @@ module fifo #(
 
 `ifndef SYNTHESIS
 
+    // Enable assertions only after reset has initialized the FIFO.
+    logic assertions_enabled = 1'b0;
+
+    always_ff @(posedge clk) begin
+        if (reset)
+            assertions_enabled <= 1'b1;
+    end
+
     // Assertion 1: Occupancy never exceeds capacity
     property p_count_within_capacity;
         @(posedge clk)
-        disable iff (reset)
+        disable iff (reset || !assertions_enabled)
         count <= FIFO_DEPTH;
     endproperty
 
     assert property (p_count_within_capacity)
-        else $error(
-            "FIFO ASSERTION FAILED: count exceeds capacity"
-        );
+        else $error("FIFO ASSERTION FAILED: count exceeds capacity");
 
     // Assertion 2: Empty flag agrees with occupancy
     property p_empty_matches_count;
         @(posedge clk)
-        disable iff (reset)
+        disable iff (reset || !assertions_enabled)
         empty == (count == 0);
     endproperty
 
     assert property (p_empty_matches_count)
-        else $error(
-            "FIFO ASSERTION FAILED: empty flag mismatch"
-        );
+        else $error("FIFO ASSERTION FAILED: empty flag mismatch");
 
     // Assertion 3: Full flag agrees with occupancy
     property p_full_matches_count;
         @(posedge clk)
-        disable iff (reset)
+        disable iff (reset || !assertions_enabled)
         full == (count == FIFO_DEPTH);
     endproperty
 
     assert property (p_full_matches_count)
-        else $error(
-            "FIFO ASSERTION FAILED: full flag mismatch"
-        );
+        else $error("FIFO ASSERTION FAILED: full flag mismatch");
 
-    // Assertion 4: Reset leaves the FIFO empty
+    // Assertion 4: Reset clears occupancy and status
     property p_reset_clears_count;
         @(posedge clk)
         reset |=> (count == 0 && empty && !full);
     endproperty
 
     assert property (p_reset_clears_count)
-        else $error(
-            "FIFO ASSERTION FAILED: reset state incorrect"
-        );
+        else $error("FIFO ASSERTION FAILED: reset state incorrect");
 
 `endif
 
